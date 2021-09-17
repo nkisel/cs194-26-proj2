@@ -41,6 +41,11 @@
             flex-direction: row;
             align-items: center;
         }
+        #stacked {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
     </style>
     <title>Colorizing the Prokudin-Gorskii photo collection</title>
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
@@ -65,13 +70,14 @@
             <br style="line-height:18%;">
             <p>
                 Simply taking the derivative of the cameraman image results in a mess - since almost every pixel differs from its neighbors,
-                a threshold is useful for throwing out meaningless edges. This greatly improves edge detection on the original image, but
+                you end up seeing edges practically everywhere. In this case, a threshold for the strength of an edge
+                is useful for throwing out meaningless edges. This greatly improves edge detection on the original image, but
                 there remain some strong differences in the color of the scenery particularly underneath the cameraman.
             </p>
             <p>
-                To remedy this, I took the Gaussian G(4, 1) of the image and found that most of the aforementioned noise was gone,
-                and the silhouette of the man & his camera was yet stronger than before. While the grass had lots of color changes
-                over individual pixels, it can still be thought of as a green block overall. Using the Gaussian to smooth out the
+                While the grass has lots of color changes over individual pixels, it can still be thought of as a green block overall. 
+                To remedy the noise in the grass, I took the Gaussian G(4, 1) of the image and found that most of the aforementioned noise was gone,
+                and the silhouette of the man & his camera was yet stronger than before. Using the Gaussian to smooth out the
                 grass brings us to that blurred, generalized green area and removes the edges. As a result, you can't see any specks
                 representing the high volume of edges in the grass in the resultant image!
             </p>
@@ -82,11 +88,12 @@
             <br style="line-height:18%;">
             <p>
                 I replicated the previous experiment, where I took the gaussian of an image before convolving it in the x and y directions.
-                Then, I took the derivative in both the x & y directions of the original gaussian before applying it to the image.
+                Then, I took the derivative of the gaussian in both the x & y directions before applying each derivative-of-gaussian to the image and combining their results.
+                As you can see, the output of the two processes is exactly the same.
             </p>
 
         </div>
-        <div style="margin-left: 2%; max-width: 50%;">
+        <div id="stacked" style="margin-left: 2%; max-width: 50%;">
             <div id="side-by-side">
                 <img src="img/cameraman.png" alt="Original" style="max-width: 225px;">
                 <img src="web/deriv.jpg" alt="Dx & Dy" style="max-width: 225px;">
@@ -96,9 +103,28 @@
                 <img src="out/cameraman_edges_gaussian.jpg" alt="After Gaussian" style="max-width: 225px;">
             </div> <!-- end inner side-by-side -->
             <p><i>at left: before; at right, after smoothing with the Gaussian G(4, 1)</i></p>
+
+            <div id="side-by-side">
+                <div id="side-by-side">
+                    <div id="stacked">
+                        <img src="out/cameraman_edges_gaussian.jpg" alt="After Gaussian" style="max-width: 225px;">
+                        <img src="out/gaussian_reg.jpg" alt="gaussian" style="width: 60px;">
+                    </div>
+                    <div id="stacked">
+                        <img src="out/cameraman_edges_gxgy.jpg" alt="DoG X, DoG Y" style="max-width: 225px;">
+
+                        <div id="side-by-side">
+                            <img src="out/gaussian_x.jpg" alt="Dx" style="width: 60px;">
+                            <img src="out/gaussian_y.jpg" alt="Dy" style="width: 60px;">
+                        </div>
+
+                    </div>
+                </div> <!-- end inner side-by-side -->
+            </div> <!-- end inner side-by-side -->
+            <p><i>at left: derivative applied after Gaussian; </i></p>
+            <p><i>at right, derivative of Gaussian applied</i></p>
         </div>
     </div>
-
     <hr>
 
     <h2>Fun with Frequencies</h2>
@@ -108,28 +134,55 @@
     <p>
         The unsharp masking technique utilizes the same Gaussian as before, but subtracts that Gaussian from the original image.
         The resultant matrix contains just the sharp corners of the image without much of the original solid color.
-        This process allows us to add the sharp corners into the image once more to amplify their sharpness.
-        Note below that I've radically increased the sharpness to the point that the corners and edges of the 
-        building are so bright that the contrast of the rest of the photo has plumetted. Additionally, there are artifacts
-        in the sky around the building's edges that look like a digital version of a mirage.
+        This process allows us to add the sharp corners into the image once more to amplify their sharpness. In the sharpened Taj Mahal, 
+        you might be able to see artifacts in the sky around the building's edges that look like a digital version of a mirage.
+        Note that radically increasing the sharpness results in the corners and edges of the 
+        photo becoming so bright that the contrast of the rest of the photo decreases; this manifests
+        slightly in the blurred-then-sharpened version. 
     </p>
 
-    <div class="cell">
-        <img src="img/taj.jpg" alt="Taj">
-        <p>Taj Mahal</p>
-        <br>
-    </div>
+    <div id="stacked">
+        <div id="side-by-side">
+            <div class="cell">
+                <img src="img/taj.jpg" alt="Taj">
+                <p>Taj Mahal</p>
+                <br>
+            </div>
 
-    <div class="cell">
-        <img src="out/taj_sharpened.jpg" alt="Taj">
-        <p>Sharpened Taj Mahal</p>
-        <br>
+            &gt;
+
+            <div class="cell">
+                <img src="out/taj_blurred.jpg" alt="Taj">
+                <p>Taj Mahal after Gaussian</p>
+                <br>
+            </div>
+
+        </div>
+        
+        <div id="side-by-side">
+
+            <div class="cell">
+                <img src="out/taj_unsharp.jpg" alt="Taj">
+                <p>Taj, minus the Gaussian</p>
+                <br>
+            </div>
+
+            &gt;
+
+            <div class="cell">
+                <img src="out/taj_sharpened.jpg" alt="Taj">
+                <p>Sharpened Taj Mahal</p>
+                <br>
+            </div>
+
+        </div>
     </div>
 
     <p>
         This process can be useful in moderation, but it doesn't particularly restore blurry photos well. 
         You'll note that the edges of the Taj Mahal become sharper, but none of the inner patterns re-appear.
-        You'd need to feed the computer a lot of different surfaces through deep learning to add detail where there isn't any. 
+        You'd need to feed the computer a lot of different surfaces through deep learning to add detail where there isn't any,
+        as the unsharp mask probably doesn't restore the detail in the ways you'd like. 
     </p>
 
     <div class="cell">
@@ -144,426 +197,311 @@
         <br>
     </div>
 
-    <h3>Hybrid images</h3>
-
-    <p> 
-        Using the low-pass filtering of the Gaussian and the sharpening of the unsharp filter, 
-        I combined the low frequencies of one image with the high frequencies of another to create
-        their combination.
-    </p>
-
     <div class="cell">
-        <img src="out/derek_nutmeg_hybrid.jpg" alt="Taj">
-        <p>Low frequencies of Derek with the high frequencies of Nutmeg.</p>
+        <img src="img/plains.jpg" alt="Plains">
+        <p>Plains</p>
         <br>
     </div>
 
-    <p>
+    <div class="cell">
+        <img src="out/plains_resharpened.jpg" alt="Plains resharpened">
+        <p>Blurred & sharpened plains</p>
+        <br>
+    </div>
 
-    </p>
+    <hr>
 
-    <div>
-        <div id="side-by-side">
-            <div>
-                <div class="cell">
-                    <h4>Gaussian stack</h4>
-                    <img src="out/gaussian_stack.jpg" alt="Gaussian">
-                </div>
-                <br>
-                <div class="cell">
-                    <h4>Laplacian stack</h4>
-                    <img src="out/laplacian_stack.jpg" alt="Laplacian stack">
-                </div>
-            </div>
-            <div>
-                <p>
-                    Starting from the original image, I iteratively applied the Gaussian to consecutive blurred
-                    versions of the same image, resulting in a five-image stack of more and more blurry photos. 
-                    Then, for each level of the Gaussian stack, I subtracted the previous level's Gaussian 
-                    blurred image and set it aside into a separate stack - the Laplacian stack. The Laplacian stack
-                    essentially represents unmask filters on different sets of frequencies for the photo;
-                    in other words, the edges of the photo at different blur levels.
-                </p>
-            </div>
+    <div id="stacked">
+        <h3>Hybrid images</h3>
+
+        <p> 
+            Using the low-pass filtering of the Gaussian and the sharpening of the unsharp filter, 
+            I combined the low frequencies of one image with the high frequencies of another to create
+            their combination.
+        </p>
+
+        <div class="cell">
+            <img src="out/derek_nutmeg_hybrid.jpg" alt="Taj">
+            <p>Low frequencies of Derek with the high frequencies of Nutmeg.</p>
+            <br>
         </div>
 
-        <div id="side-by-side">
-            <p style="margin: 0px">The following <b>steps</b> describe the estimated position of the green & red channels relative to the blue channel as you scale the image up in size. Scale 1 shows the final estimate.</p>
+        <hr>
+        <hr>
+        <hr>
+        <hr>
+        <hr>
+        <hr>
+        <hr>
 
-            <ul>Scale
-                <li>1 / 64</li>
-                <li>1 / 16</li>
-                <li>1 / 4</li>
-                <li>1 </li>
-            </ul>
-            <ul>Green:
-                <li>(0, 0)</li>
-                <li>(0, 0)</li>
-                <li>(-4, 8)</li>
-                <li>(-3, 7)</li>
-            </ul>
-            <ul>
-            Red:
-                <li>(128, 0)</li>
-                <li>(112, 16)</li>
-                <li>(108, 16)</li>
-                <li>(107, 17)</li>
-           </ul>
+        <p>
+            Sometimes, it's <i>really hard</i> to get these images working. It turns out that many features - facial, scenic, etc. -
+            need to align in order to mask any afterimages. 
+        </p>
+        <p>
+            For example, it's hard to make Obama/Putin work, no matter how you line them up.
+        </p>
+        <div id="stacked">
+            <div id="side-by-side">
+            
+                <img src="out/obama_putin_hybrid.jpg" style="height: 240px;">
+                <img src="out/obama_putin_hybrid1.jpg" style="height: 240px;">
+                <img src="out/obama_putin_hybrid2.jpg" style="height: 240px;">
+
+            </div>
+            <p>
+                Okay, like <i>maybe</i> you can see it in the second one, but it's not very impressive.
+            </p>
         </div>
 
-    </div>    
+        <hr>
+        <hr>
+        <hr>
+        <hr>
+        <hr>
+        <hr>
+        <hr>
+
+        <div id="side-by-side">
+                
+            <img src="img/mona_p.jpg" style="height: 340px;">
+            <img src="out/mona_putin_hybrid.jpg" style="height: 340px;">
+            <img src="img/mona.jpg" style="height: 340px;">
+
+        </div>
+        <p>If you're just having fun, though, you can ignore the inconsistencies and spear on ahead. This photo is definitely Putin from afar,
+            before you start seeing the Mona Lisa's likeness up close. Squint your eyes for help!
+        </p>
+
+        <hr>
+        <hr>
+        <hr>
+        <hr>
+        <hr>
+        <hr>
+        <hr>
+
+        <div id="stacked">
+            <div id="side-by-side">
+                
+                <img src="img/bino.jpg" style="height: 240px;">
+                <img src="out/obama_bino_hybrid.jpg" style="height: 240px;">
+                <img src="img/obama.jpg" style="height: 240px;">
+
+            </div>
+            <p>
+                Even for all its strange inconsistencies, I enjoy this one. I will admit that it's not exactly Obama I see from afar here, 
+            </p>
+            <p>
+                but it's distinctly a moustached man wearing a suit and tie, sitting in the Oval Office and staring directly at you.
+            </p>
+            <p>
+                Then, when you come closer, you see that it's not just a tie, but a chain too. 
+            </p>
+            <p>    
+                You notice the hair and distinct facial features of Childish Gambino in his "This is America" music video.
+            </p>
+
+            <div id="side-by-side">
+            
+                <img src="out/low_freqs.jpg">
+                <img src="out/high_freqs.jpg">
+
+            </div>
+            <p>
+                Here's the frequency spectrum of this combination of photos; 
+            </p>
+            <p> 
+                note the lack of highs on the left (the dark corners) and the abundance of highs (the noisy corners) on the right.
+            </p>
+        </div>
+
+    </div>
+    
     <br>
     </div>
 
+    <hr>
+
     <div>
-        <h4>Multiresolution blending</h4>
-        <div id="side-by-side">
-            <div>
-                <div class="cell">
-                    <h4>Oraple</h4>
-                    <img src="out/oraple.jpg" alt="Oraple">
+        <h4>Gaussian & Laplacian stacks</h4>
+
+        <div>
+            <p>
+                Starting from the original image, I iteratively applied the Gaussian to consecutive blurred
+                versions of the same image, resulting in a five-image stack of more and more blurry photos. 
+                Then, for each level of the Gaussian stack, I subtracted the previous level's Gaussian 
+                blurred image and set it aside into a separate stack - the Laplacian stack. The Laplacian stack
+                essentially represents unmask filters on different sets of frequencies for the photo;
+                in other words, the edges of the photo at different blur levels.
+            </p>
+            <div id="stacked">
+                <div>
+                    <div class="cell">
+                        <h4>Gaussian stack</h4>
+                        <img src="out/gaussian_stack.jpg" alt="Gaussian">
+                    </div>
+                    <br>
+                    <div class="cell">
+                        <h4>Laplacian stack</h4>
+                        <img src="out/laplacian_stack.jpg" alt="Laplacian stack">
+                    </div>
                 </div>
             </div>
-            <div>
-                <p>
-                    Here's the oraple! It's probably a little more abrupt than the example image along the edge,
-                    but I'm happy with how the two intersect in such a natural way both at the bottom and top.
-                </p>
-                <p>
-                    Building an oraple of your own has a few steps:
-                    <ul>
-                        <li>first, make sure you have two aligned or otherwise matched images such that there's a feature
-                            of one that you'd like to appear in the other.
-                        </li>
-                        <li>
-                            Mask out the section that you'd like the two images to intersect in with a black/white image.
-                        </li>
-                        <li>Construct the Gaussian stack for the mask, and the Laplacian stacks for the images.</li>
-                        <li>
-                            For each level of your stack, smoothly apply a linear combination of the first and second image
-                            based on how bright the mask is at each pixel.
-                        </li>
-                    </ul>
-                </p>
+
+            <div id="stacked">
+                <h4>Results on the Oraple</h4>
+                <p><i>top: Apple; middle: Combination; bottom: Orange</i></p>
+                <div id="side-by-side">
+                    <div id="stacked">
+                        <img src="out/oraple_a1.jpg" alt="Oraple">
+                        <img src="out/oraple_total1.jpg" alt="Oraple">
+                        <img src="out/oraple_b1.jpg" alt="Oraple">
+                    </div>
+                    <div id="stacked">
+                        <img src="out/oraple_a2.jpg" alt="Oraple">
+                        <img src="out/oraple_total2.jpg" alt="Oraple">
+                        <img src="out/oraple_b2.jpg" alt="Oraple">
+                    </div>
+                    <div id="stacked">
+                        <img src="out/oraple_a3.jpg" alt="Oraple">
+                        <img src="out/oraple_total3.jpg" alt="Oraple">
+                        <img src="out/oraple_b3.jpg" alt="Oraple">
+                    </div>
+                    <div id="stacked">
+                        <img src="out/oraple_a4.jpg" alt="Oraple">
+                        <img src="out/oraple_total4.jpg" alt="Oraple">
+                        <img src="out/oraple_b4.jpg" alt="Oraple">
+                    </div>
+                </div>
+                
+            </div>
+    
+        </div>    
+
+        <hr>
+
+        <div id="stacked">
+
+            <h4>Multiresolution blending</h4>
+
+            <div id="side-by-side">
+                <div>
+                    <div class="cell">
+                        <h4>Oraple</h4>
+                        <img src="out/oraple.jpg" alt="Oraple">
+                    </div>
+                </div>
+                <div>
+                    <p>
+                        Here's the oraple <i>from the other side!</i>
+                        I'm happy with how the two intersect in such a natural way both at the bottom and top.
+                    </p>
+                    <p>
+                        Building an oraple of your own has a few steps:
+                        <ul>
+                            <li>First, make sure you have two aligned or otherwise matched images such that there's a feature
+                                of one that you'd like to appear in the other.
+                            </li>
+                            <li>
+                                Mask out the section that you'd like the two images to intersect in with a black/white image.
+                            </li>
+                            <li>Construct the Gaussian stack for the mask, and the Laplacian stacks for the images.</li>
+                            <li>
+                                For each level of your stack, smoothly apply a linear combination of the first and second image
+                                based on how bright the mask is at each pixel.
+                            </li>
+                        </ul>
+                    </p>
+                </div>
             </div>
         </div>
 
-        <div>
+        <hr>
+
+        <div id="stacked">
+            <i>Bell & whistle: I'm doing this process with all three color channels! See the below examples for more!</i>
             <div class="cell">
-                <p> Now here are the painted ladies out in the Himilayas!</p>
-                <img src="out/sf.jpg" alt="SF">
-                <p> Oh, I entered San Francisco and the Himilayas in the wrong order. Here's what I meant to do! </p>
-                <img src="out/himilaya.jpg" alt="Himilayas">
+                <div id="side-by-side">
+                    <img src="img/himilaya.jpg" alt="Himilayas">
+                    <img src="img/sf_mask.jpg" alt="Mask">
+                    <img src="img/sf.jpg" alt="SF">
+                </div>
+
             </div>
+
+            <p> Now for my next trick, I'll put the painted ladies of San Francisco out into the Himilayas!</p>
+            <img src="out/sf.jpg" alt="SF">
+            <p> Oh, I entered San Francisco and the Himilayas in the wrong order, and the width of the Gaussian kernel isn't wide enough so most of the colors are missing. Here's what I meant to do! </p>
+            <img src="out/himilaya.jpg" alt="Himilayas">
+            <p> I'm pretty happy with this one, but it does start to look a little strange up close, since you can see the mountains bleed down into the roofs of the houses.</p>
+        </div>
+
+        <div id="stacked">
+            <h4>San Francisco's Laplacian Stacks</h4>
+            <p><i>left: Himilayas; middle: Combination; right: Painted Ladies</i></p>
+            <div id="stacked">
+                <div id="side-by-side">
+                    <img src="out/sf_a1.jpg" alt="sf" style="width:400px">
+                    <img src="out/sf_total1.jpg" alt="sf" style="width:400px">
+                    <img src="out/sf_b1.jpg" alt="sf" style="width:400px">
+                </div>
+                <div id="side-by-side">
+                    <img src="out/sf_a2.jpg" alt="sf" style="width:400px">
+                    <img src="out/sf_total2.jpg" alt="sf" style="width:400px">
+                    <img src="out/sf_b2.jpg" alt="sf" style="width:400px">
+                </div>
+                <div id="side-by-side">
+                    <img src="out/sf_a3.jpg" alt="sf" style="width:400px">
+                    <img src="out/sf_total3.jpg" alt="sf" style="width:400px">
+                    <img src="out/sf_b3.jpg" alt="sf" style="width:400px">
+                </div>
+                <div id="side-by-side">
+                    <img src="out/sf_a4.jpg" alt="sf" style="width:400px">
+                    <img src="out/sf_total4.jpg" alt="sf" style="width:400px">
+                    <img src="out/sf_b4.jpg" alt="sf" style="width:400px">
+                </div>
+            </div>
+            
+        </div>
+
+        <hr>
+
+        <div id="stacked">
+            <div class="cell">
+                <p> Now, I tried the same thing using a photo I took of Crater Lake and the San Diego skyline, but it didn't work so well. </p>
+
+                <div id="side-by-side">
+                    <img src="img/sd_a.jpg" alt="SD">
+                    <img src="img/sd_mask.jpg" alt="Mask">
+                    <img src="img/sd_b.jpg" alt="Crater Lake">
+                </div>
+            </div>
+            <p> A primary reason was that the environments don't conceal each other's backgrounds well. The blurring effect isn't particularly nice to the sharp corners here, 
+                so the high contrast points like the trees, mountains, and buildings end up blending with the sky in both photos. </p>
+            <img src="out/crater.jpg" alt="A failure">
+            <p> Lowering the size of the Gaussian kernel helps out with the execution of putting a skyline into nature, but removes much of the color. </p>
+            <img src="out/crater2.jpg" alt="Himilayas">
+        </div>
+        
+        <hr>
+
+        <div id="stacked">
+            <div class="cell">
+                <p> Lastly, I retried the faces experiment from earlier. Behold, the Mona Putin! </p>
+
+                <div id="side-by-side">
+                    <img src="img/mona_l.jpg" alt="Mona Lisa">
+                    <img src="img/mona_mask.jpg" alt="Mask">
+                    <img src="img/mona_p.jpg" alt="Putin">
+                </div>
+            </div>
+            <p> Putin's facial features really bring out a sense of three-dimensionality in this photo. It also becomes clear that the Mona Lisa - I mean Putin - is <i>definitely</i> looking away. </p>
+            <img src="out/mona_putin.jpg" alt="A failure">
+            <p> I really like how the left cheeks of Putin & Mona Lisa align. Perhaps the color of Putin's face could be adjusted a little. </p>
         </div>
 
     </div> 
     
-
-    <div class="cell">
-        <h4>Onion Church</h4>
-        <img src="out_p2/onion_church.tif.jpg" alt="Onion Church">
-    <br>
-    </div>
-
-    
-    <h3>Large Images</h3>
-
-    <div class="cell">
-    <h4>Emir</h4>
-    <img src="out_p2/emir.tif.jpg" alt="Emir">
-    <p>Green: (+46, +9)   Red: (+99, +17)</p>
-    <br>
-    </div>
-
-    <div class="cell">
-    <h4>Harvesters</h4>
-    <img src="out_p2/harvesters.tif.jpg" alt="Harvesters">
-    <p>Green: (+59, +11)   Red: (+124, +9)</p>
-    <br>
-    </div>
-
-    <div class="cell">
-    <h4>Icon</h4>
-    <img src="out_p2/icon.tif.jpg" alt="Icon">
-    <p>Green: (+41, +16)   Red: (+90, +22)</p>
-    <br>
-    </div>
-
-    <div class="cell">
-        <h4>Melons</h4>
-        <img src="out_p2/melons.tif.jpg" alt="Melons">
-        <p>Green: (+80, +4)   Red: (+178, +8)</p>
-        <br>
-    </div>
-
-    <div class="cell">
-    <h4>Monastery</h4>
-    <img src="out_p2/monastery.jpg.jpg" alt="Monastery">
-    <p>Green: (-3, +1)   Red: (+3, +2)</p>
-    <br>
-    </div>
-
-    <div class="cell">
-        <h4>Lady</h4>
-        <img src="out_p2/lady.tif.jpg" alt="Lady">
-        <p>Green: (+57, -6)   Red: (+117, -16)</p>
-        <br>
-    </div>
-
-    <div class="cell">
-        <h4>Onion Church</h4>
-        <img src="out_p2/onion_church.tif.jpg" alt="Onion Church">
-        <p>Green: (+52, +23)   Red: (+108, +35)</p>
-        <br>
-    </div>
-
-    <div class="cell">
-    <h4>Self-portrait</h4>
-    <img src="out_p2/self_portrait.tif.jpg" alt="Self-portrait">
-    <p>Green: (+77, -1)   Red: (+174, -2)</p>
-    <br>
-    </div>
-
-    <div class="cell">
-    <h4>Three generations</h4>
-    <img src="out_p2/three_generations.tif.jpg" alt="Three generations">
-    <p>Green: (+52, +6)   Red: (+111, +8)</p>
-    <br>
-    </div>
-
-    <div class="cell">
-        <h4>Tobolsk</h4>
-        <img src="out_p2/tobolsk.jpg.jpg" alt="Tobolsk">
-        <p>Green: (+3, +2)   Red: (+6, +3)</p>
-        <br>
-    </div>
-
-    <div class="cell">
-    <h4>Train</h4>
-    <img src="out_p2/train.tif.jpg" alt="Train">
-    <p>Green: (+41, -2)   Red: (+91, +2)</p>
-    <br>
-    </div>
-
-    <div class="cell">
-    <h4>Workshop</h4>
-    <img src="out_p2/workshop.tif.jpg" alt="Workshop">
-    <p>Green: (+52, -4)   Red: (+104, -14)</p>
-    <br>
-    </div>
-
-
-    <h2>Results</h2>
-    <p>
-        The pyramid algorithm works well for most images, coming within a few pixels of an exact match for most objects if not perfectly matching them.
-        There were some evident difficulties with <i>lady</i>, on which the red channel consistently aligned several pixels to the left of the other two channels, and ended up blurring the image around the lady's head.
-        The same can be said for <i>self-portrait</i>, which struggles with similarly-colored details such as trees, rocks, and bushes.
-    </p>
-
-    <hr>
-
-    <h2>Additional images</h2>
-
-    <div class="cell">
-        <h4>Dvorets (garden)</h4>
-        <img src="out_p2/dvorets.tif.jpg" alt="Dvorets">
-        <p>Green: (+33, -8)   Red: (+91, -26)</p>
-        <br>
-    </div>
-
-    <div class="cell">
-        <h4>Koloch</h4>
-        <img src="out_p2/koloch.tif.jpg" alt="Koloch">
-        <p>Green: (+51, +13)   Red: (+109, +26)</p>
-        <br>
-    </div>
-
-    <div class="cell">
-        <h4>Kremlin</h4>
-        <img src="out_p2/kremlin.tif.jpg" alt="Kremlin">
-        <p>Green: (+71, +6)   Red: (+152, +11)</p>
-        <br>
-    </div>
-
-    <hr>
-
-    <h2>Bells and Whistles</h2>
-
-    <h3>Edge Detection</h3>
-    <p>
-        Using <code>skimage.transform</code>, I used the <code>roberts()</code> edge detection algorithm to trace each of the three negatives before comparing them.
-        The edge detection approach works <i>wonders</i> on sharp images with distinct corners, such as <code>train</code>, <code>workshop</code>, <code>onion_church</code>, & <code>emir</code>.
-        Of course, applying this filter has its tradeoffs: smoother images - namely <code>lady</code> - were disrupted and blurred as a result.
-        Some images, like <code>three_generations</code>, include some sharp corners but less-sharp focal points - thus, the three family members are defocused,
-        but the fence is well-aligned.
-    </p>
-
-    <div id="side-by-side">
-        <div class="cell">
-        <h4>Train: Before</h4>
-        <img src="out_p2/train.tif.jpg" alt="Train">
-        <br>
-        </div>
-
-        <div class="cell">
-        <h4>Train, edge detection</h4>
-        <img src="out_ec/train.tif.jpg" alt="Train, edge detection">
-        <br>
-        </div>
-    </div>
-
-    <div id="side-by-side">
-        <div class="cell">
-        <h4>Emir</h4>
-        <img src="out_p2/emir.tif.jpg" alt="Emir">
-        <br>
-        </div>
-
-        <div class="cell">
-        <h4>Emir, edge detection</h4>
-        <img src="out_ec/emir.tif.jpg" alt="Emir, edge detection">
-        <br>
-        </div>
-    </div>
-
-    <div id="side-by-side">
-        <div class="cell">
-        <h4>Onion Church</h4>
-        <img src="out_p2/onion_church.tif.jpg" alt="Onion Church">
-        <br>
-        </div>
-
-        <div class="cell">
-        <h4>Onion Church, edge detection</h4>
-        <img src="out_ec/onion_church.tif.jpg" alt="Onion Church, edge detection">
-        <br>
-        </div>
-    </div>
-
-    <p>
-        Of course, applying this filter has its tradeoffs: smoother images - namely <code>lady</code> - were disrupted and blurred as a result.
-        Some images, like <code>three_generations</code>, include some sharp corners but less-sharp focal points - thus, the three family members are defocused,
-        but the fence is well-aligned.
-    </p>
-
-    <div id="side-by-side">
-        <div class="cell">
-        <h4>Lady</h4>
-        <img src="out_p2/lady.tif.jpg" alt="Lady">
-        <br>
-        </div>
-
-        <div class="cell">
-        <h4>Lady, edge detection</h4>
-        <img src="out_ec/lady.tif.jpg" alt="Lady, edge detection">
-        <br>
-        </div>
-    </div>
-
-    <div id="side-by-side">
-        <div class="cell">
-        <h4>Three Generations</h4>
-        <img src="out_p2/three_generations.tif.jpg" alt="Onion Church">
-        <br>
-        </div>
-
-        <div class="cell">
-        <h4>Three Generations, edge detection</h4>
-        <img src="out_ec/three_generations.tif.jpg" alt="Onion Church, edge detection">
-        <br>
-        </div>
-    </div>
-
-
-    <h3>Auto-contrasting</h3>
-    <p>
-        To improve contrast and utilize the whole color spectrum, I added a preprocessing step:
-        <code>skimage.exposure.equalize_hist</code>, which differentiates colors that are particularly prevalent in an image. 
-        In particular, this improved the color of the sky and other washed-out whites in most images.
-        Delightfully, in addition to improving the color, this caused <i>self portrait</i> to line up perfectly without edge detection!
-        I suspect this is because a lot of similar colors appear next to each other, and end up neither being classified as edges nor
-        having a large impact on the SSD sum otherwise. Also notice the well-differentiated tree colors in the scenic background.
-    </p>
-
-    <div id="side-by-side">
-        <div class="cell">
-        <h4>Self Portrait</h4>
-        <img src="out_p2/self_portrait.tif.jpg" alt="Self Portrait: original">
-        <br>
-        </div>
-    
-
-        <div class="cell">
-        <h4>Self Portrait, contrast</h4>
-        <img src="out_contrast/self_portrait.tif.jpg" alt="Self Portrait: contrast">
-        <br>
-        </div>
-    </div>
-
-    <div id="side-by-side">
-        <div class="cell">
-        <h4>Train</h4>
-        <img src="out_p2/train.tif.jpg" alt="Train">
-        <br>
-        </div>
-
-        <div class="cell">
-        <h4>Train, contrast</h4>
-        <img src="out_contrast/train.tif.jpg" alt="Train: contrast">
-        <br>
-        </div>
-    </div>
-
-    <div id="side-by-side">
-        <div class="cell">
-        <h4>Onion Church, edge detection</h4>
-        <img src="out_ec/onion_church.tif.jpg" alt="Onion Church, edge detection">
-        <br>
-        </div>
-
-        <div class="cell">
-        <h4>Onion Church, contrast</h4>
-        <img src="out_contrast/onion_church.tif.jpg" alt="Onion Church, contrast">
-        <br>
-        </div>
-    </div>
-
-    <br>
-    <p>
-        You'll notice more vivid colors and blemishes on some re-contrasted images. 
-    </p>
-    <p>
-        Beauty is in the eye of the beholder. It's up to <i>you</i> whether this is a welcome change.
-    </p>
-
-    <div id="side-by-side">
-        <div class="cell">
-        <h4>Monastery</h4>
-        <img src="out_p2/monastery.jpg.jpg" alt="Monastery">
-        <br>
-        </div>
-
-        <div class="cell">
-        <h4>Monastery, contrast</h4>
-        <img src="out_contrast/monastery.jpg.jpg" alt="Monastery: contrast">
-        <br>
-        </div>
-    </div>
-
-    <br>
-    <p>Namely, these pictures became distinctly <i>purple</i>:</p>
-
-    <div class="cell">
-        <h4>Church, contrast</h4>
-        <img src="out_contrast/church.tif.jpg" alt="Church: contrast">
-        <br>
-    </div>
-
-    <div class="cell">
-        <h4>Emir, contrast</h4>
-        <img src="out_contrast/emir.tif.jpg" alt="Emir: contrast">
-        <br>
-    </div>
 
 </body></html>

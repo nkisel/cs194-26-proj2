@@ -6,6 +6,7 @@ import scipy.signal as sps
 import scipy.ndimage.interpolation as spi
 import skimage.io as skio
 import numpy as np
+import matplotlib.pyplot as plt
 import math
 from align_image_code import align_images
 from skimage.color import rgb2gray
@@ -57,12 +58,13 @@ def gaussian_convolution(im, g):
 
 
 def threshold_mask(x, y, threshold_x, threshold_y):
+    """ Binarize two convolved images. """
     mask_x = (abs(x) > threshold_x).astype('float32')
     mask_y = (abs(y) > threshold_y).astype('float32')
     return mask_x, mask_y
 
 def edge_detection(img, threshold_x, threshold_y, debug=False):
-
+    """ Convolve IMG with D_x & D_y, separately binarize the images, and sum the two. """
     convolution_x, convolution_y = convolve(img)
     mask_x, mask_y = threshold_mask(convolution_x, convolution_y, threshold_x, threshold_y)
 
@@ -79,98 +81,101 @@ def normalize(img):
     return (img - np.amin(img)) / (np.amax(img) - np.amin(img))
 
 def gaussian(alpha, sigma):
+    """ Create a 2D gaussian of width & height ALPHA. """
     g = cv2.getGaussianKernel(alpha, sigma)
     return np.outer(g, g.T)
 
 def gaussian_of_image_then_convolution(img, threshold_x, threshold_y, alpha, sigma):
+    """ Convolve the image with the Gaussian, then the D_x and D_y filters, binarizing the result. """
     g = gaussian(alpha, sigma)
     convolution_g = sps.convolve2d(img, g).astype('float32')
     return normalize(edge_detection(convolution_g, threshold_x, threshold_y, False))
 
 def convolve_gaussian_then_image(img, threshold_x, threshold_y, alpha, sigma):
+    """ 
+    Convolve the Gaussian with D_x to produce a G_x,
+    convolve the Gaussian with D_y to produce a G_y,
+    and then convolve the image with these two filters, binarizing the result.
+    """
     g = gaussian(alpha, sigma)
-    g = convolve_x(g)
-    g = convolve_y(g)
-    show(g)
-    img = sps.convolve2d(img, g).astype('float32')
-    img = (abs(img) > 7).astype('float32')
+    save(g, "out/gaussian_reg.jpg")
+    g_x = convolve_x(g)
+    save(g_x, "out/gaussian_x.jpg")
+    g_y = convolve_y(g)
+    save(g_y, "out/gaussian_y.jpg")
+
+    img_x = sps.convolve2d(img, g_x, mode="same").astype('float32')
+    img_x = (abs(img_x) > threshold_x).astype('float32')
+    img_y = sps.convolve2d(img, g_y, mode="same").astype('float32')
+    img_y = (abs(img_y) > threshold_y).astype('float32')
     
-    return normalize(img).astype('float32')
-
-# PART 1.2
-# The image's edges before & after taking the Gaussian.
-save(edge_detection(cameraman(), 48, 40), "out/cameraman_edges_raw.jpg")
-
-# Take the Gaussian of the image BEFORE convolving with DX and DY.
-show(normalize(gaussian_of_image_then_convolution(cameraman(), 28, 28, 4, 1)))
-
-#save(gaussian_of_image_then_convolution(cameraman(), 40, 25, 4, 1), "out/cameraman_edges_gaussian.jpg")
-
-# Convolve the Gaussian with DX and DY, THEN convolve the result with the image.
-show(convolve_gaussian_then_image(cameraman(), 40, 25, 4, 1))
+    return ((img_x + img_y)).astype('float32')
 
 def unsharp_mask(img, alpha = 12, sigma = 6):
-    #taj = cv2.imread("img/taj.jpg", cv2.IMREAD_GRAYSCALE)
     g = gaussian(alpha, sigma)
-
-    """impulse = [[0] * alpha] * alpha
-    impulse[(alpha - 1) // 2][(alpha - 1) // 2] = (impulse[(alpha - 1) // 2][(alpha - 1) // 2] + 0.707) ** 0.5
-    impulse[(alpha + 1) // 2][(alpha - 1) // 2] = (impulse[(alpha + 1) // 2][(alpha - 1) // 2] + 0.707) ** 0.5
-    impulse[(alpha - 1) // 2][(alpha + 1) // 2] = (impulse[(alpha - 1) // 2][(alpha + 1) // 2] + 0.707) ** 0.5
-    impulse[(alpha + 1) // 2][(alpha + 1) // 2] = (impulse[(alpha + 1) // 2][(alpha + 1) // 2] + 0.707) ** 0.5
-
-    print(impulse)"""
-
-    #blur = sps.convolve2d(img, g)
     blur = gaussian_convolution(img, g)
-    #show(blur)
-    print(blur.shape, img.shape)
-    return rgb2gray(img) - blur
+    return np.clip(rgb2gray(img) - blur, 0, 1)
 
-def sharpen(img):
+def sharpen(img, alpha = 12, sigma = 3):
+    """ Add the unsharp masked version of an image back to its"""
     r = img[:,:,0]
     g = img[:,:,1]
     b = img[:,:,2]
 
     # Let's try subtracting a gaussian with the same parameters from the blurred version to get the sharp edges.
-    unsharp_r = unsharp_mask(r, 12, 3)
-    unsharp_g = unsharp_mask(g, 12, 3)
-    unsharp_b = unsharp_mask(b, 12, 3)
+    unsharp_r = unsharp_mask(r, alpha, sigma)
+    unsharp_g = unsharp_mask(g, alpha, sigma)
+    unsharp_b = unsharp_mask(b, alpha, sigma)
 
     sharpened_version = np.dstack([r, g, b]) + np.dstack([unsharp_r, unsharp_g, unsharp_b])
     return sharpened_version
 
-def resharpen_blurred_image(img):
+def resharpen_blurred_image(img, alpha = 13, sigma = 5):
 
     r = img[:,:,0]
     g = img[:,:,1]
     b = img[:,:,2]
     
-    blur_r = gaussian_convolution_params(r, 14, 5)
-    blur_g = gaussian_convolution_params(g, 14, 5)
-    blur_b = gaussian_convolution_params(b, 14, 5)
+    blur_r = gaussian_convolution_params(r, alpha, sigma)
+    blur_g = gaussian_convolution_params(g, alpha, sigma)
+    blur_b = gaussian_convolution_params(b, alpha, sigma)
 
     # Let's try subtracting a gaussian with the same parameters from the blurred version to get the sharp edges.
-    unsharp_r = unsharp_mask(blur_r, 14, 5)
-    unsharp_g = unsharp_mask(blur_g, 14, 5)
-    unsharp_b = unsharp_mask(blur_b, 14, 5)
+    unsharp_r = unsharp_mask(blur_r, alpha, sigma)
+    unsharp_g = unsharp_mask(blur_g, alpha, sigma)
+    unsharp_b = unsharp_mask(blur_b, alpha, sigma)
+
+    # This is where I saved the intermediate steps of the Taj Mahal.
+    #save(normalize(np.dstack([unsharp_r, unsharp_g, unsharp_b])), "out/taj_unsharp.jpg")
+    #save(np.dstack([blur_r, blur_g, blur_b]), "out/taj_blurred.jpg")
 
     resharpened_version = np.dstack([blur_r, blur_g, blur_b]) + np.dstack([unsharp_r, unsharp_g, unsharp_b])
     return resharpened_version
 
-save(sharpen(taj), "out/taj_sharpened.jpg")
-#save(resharpen_blurred_image(taj), "out/taj_blurred_sharpened.jpg")
+def hybrid(lpi, hpi, sigma):
+    """ 
+    Align & blend the frequencies left by the Gaussian of size SIGMA in image LPI,
+    and add them to the high frequencies produced by the unsharp mask for image HPI.
+    Return the blended image.
+    """
+    lpi, hpi = align_images(lpi, hpi)
 
-def hybrid(lpi, hpi, cutoff_frequency):
-    lpi, hpi = align_images(derek, nutmeg)
-    print(hpi.shape)
-    alpha = 17
-    sigma = 13
+    alpha = sigma * 2
     hpi = normalize(unsharp_mask(hpi, alpha, sigma))
+
+    hpi_freqs = np.log(np.abs(np.fft.fftshift(np.fft.fft2(hpi))))
+    #plt.imshow(hpi_freqs)
+    #plt.show()
+    save(hpi_freqs, "out/high_freqs.jpg")
+
 
     lpi = gaussian_convolution_params(lpi, alpha, sigma)
 
-    #lpi = lpi[(alpha - 1) // 2 : len(lpi) - alpha // 2, (alpha - 1) : len(lpi) - (alpha // 2)]
+    lpi_freqs = np.log(np.abs(np.fft.fftshift(np.fft.fft2(lpi))))
+    #plt.imshow(lpi_freqs)
+    #plt.show()
+    save(lpi_freqs, "out/low_freqs.jpg")
+
     hybrid = ((hpi + lpi) / 2) 
     
     return hybrid
@@ -184,81 +189,133 @@ def gaussian_stack(image, conv_matrix, levels = 5):
 
 def stacks(image, conv_matrix, levels = 5):
     gaussian_stack = [image]
-    print(image.shape)
     laplacian_stack = [image]
     for i in range(1, levels):
-        #print(gaussian_stack[i - 1][:,:,0].shape)
         conv = np.dstack([gaussian_convolution(gaussian_stack[i - 1][:,:,color], conv_matrix) for color in range(3)])
-        #conv = gaussian_convolution(gaussian_stack[i - 1], conv_matrix)
         gaussian_stack.append(conv)
-        laplacian_stack.append((gaussian_stack[i - 1][:,:,:] - conv))
-        #print(min(laplacian_stack[i - 1][:,:]))
+        laplacian_stack.append(gaussian_stack[i - 1][:,:,:] - conv)
     return gaussian_stack, laplacian_stack
         
-def blend(A, B, R, size, sigma, gray=False):
-    # Easy way to simulate grayscale without changing the other methods
-    if gray:
-        A = rgb2gray(A)
-        A = np.dstack([A, A, A])
-        B = rgb2gray(B)
-        B = np.dstack([B, B, B])
-        if np.max(A) <= 1:
-            A *= 255
-        if np.max(B) <= 1:
-            B *= 255
-    # Apply a mask to make sure the image is 1 or 0
-    #R = R[:,:] > 0.2
-    
-    # Easy way to simulate grayscale without changing the other methods
+def blend(A, B, mask, size, sigma, name="oraple"):
+    """ Given image A & B, blend between the two along MASK using a gaussian kernel of size SIZE & sigma SIGMA. """
+    mask = normalize(mask)
 
-    #A = normalize(A)
-    #B = normalize(B)
-    R = normalize(R)
-    #print(A[len(R) - 38, R.shape[1] - 16])
-    #print(B[len(R) - 38, R.shape[1] - 16])
-    #print(R[len(R) - 38, R.shape[1] - 16])
-
+    # Generate Gaussian & Laplacian stacks for both images.
     g = gaussian(size, sigma)
     _, a_lap = stacks(A, g)
     _, b_lap = stacks(B, g)
-    mask_gaussian, _ = stacks(R, g)
-    #print(mask_gaussian[2][len(R) - 38, R.shape[1] - 16])
+    mask_gaussian, _ = stacks(mask, g)
 
     ones = np.ones((mask_gaussian[0].shape[0], mask_gaussian[0].shape[1]))
     ones = np.dstack([ones, ones, ones])
 
+    # Blend levels of the stacks together.
     LS = []
     for i in range(1, len(a_lap)):
-        LS.append(((mask_gaussian[i] * a_lap[i]) + ((ones - mask_gaussian[i]) * b_lap[i])))
-        #LS.append(((ones - mask_gaussian[i]) * a_lap[i]) + (mask_gaussian[i] * b_lap[i]))
+        a_part = (mask_gaussian[i] * a_lap[i])
+        b_part = ((ones - mask_gaussian[i]) * b_lap[i])
+        total = a_part + b_part
+
+        # Save the components
+        save(a_part, "out/" + name + "_a" + str(i) + ".jpg")
+        save(b_part, "out/" + name + "_b" + str(i) + ".jpg")
+        save(total, "out/" + name + "_total" + str(i) + ".jpg")
+
+        LS.append(total)
 
     LS = sum(LS)
 
-    return normalize(LS)
+    return LS
 
 
-#camera = skio.imread("img/cameraman.png", 0)
-#g_camera = gaussian_convolution(camera, g)
-#print(camera.shape, g_camera.shape)
-#assert camera.shape[0:2] == g_camera.shape[0:2]
+# PART 1.2
+# The image's edges before & after taking the Gaussian.
+#save(edge_detection(cameraman(), 48, 40), "out/cameraman_edges_raw.jpg")
+
+# Take the Gaussian of the image BEFORE convolving with DX and DY.
+#show(normalize(gaussian_of_image_then_convolution(cameraman(), 40, 25, 4, 1)))
+
+#save(gaussian_of_image_then_convolution(cameraman(), 40, 25, 4, 1), "out/cameraman_edges_gaussian.jpg")
+
+# Convolve the Gaussian with DX and DY, THEN convolve the result with the image.
+#show(convolve_gaussian_then_image(cameraman(), 40, 25, 4, 1))
+#save(convolve_gaussian_then_image(cameraman(), 40, 25, 4, 1), "out/cameraman_edges_gxgy.jpg")
+
+# PART 2.1
+#save(sharpen(taj), "out/taj_sharpened.jpg")
+save(resharpen_blurred_image(taj), "out/taj_blurred_sharpened.jpg")
+
+def resharpen_plains():
+    plains = skio.imread("img/plains.jpg")
+    save(resharpen_blurred_image(plains, alpha=8, sigma=3), "out/plains_resharpened.jpg")
+
+#resharpen_plains()
+
+# PART 2.3
 
 def stacks_demo():
     g = gaussian(12, 26)
 
-    ga, l = stacks(derek, g)
+    ga, l = stacks(apple, g)
     ga_img = np.concatenate(ga, axis=1)
-    save(ga_img, "out/gaussian_stack.jpg")
+    save(ga_img, "out/oraple_gaussian_stack.jpg")
     l_img = np.concatenate(l, axis=1)
-    save(l_img, "out/laplacian_stack.jpg")
+    save(l_img, "out/oraple_laplacian_stack.jpg")
 
 #stacks_demo()
 
-#save(hybrid(derek, nutmeg, 1500), "out/derek_nutmeg_hybrid.jpg")
-#save(blend(apple, orange, mask, 32, 6), "out/oraple.jpg")
+#hybrid(derek, nutmeg, 13)
+#save(hybrid(derek, nutmeg, 13), "out/derek_nutmeg_hybrid.jpg")
+
+def obama_putin():
+    obama = skio.imread("img/obama.jpg", 0)
+    putin = skio.imread("img/putin.jpg", 0)
+    save(hybrid(obama, putin, 3), "out/obama_putin_hybrid4.jpg")
+
+#obama_putin()
+
+def obama_gambino():
+    obama = skio.imread("img/obama2.jpg", 0)
+    putin = skio.imread("img/bino2.jpg", 0)
+    save(hybrid(putin, obama, 2), "out/obama_bino_hybrid2.jpg")
+
+#obama_gambino()
+
+def mona_putin():
+    """ Blend the Mona Lisa & Putin without a mask. """
+    mona = skio.imread("img/mona_l.jpg", 0)
+    putin = skio.imread("img/mona_p.jpg", 0)
+    save(hybrid(putin, mona, 4), "out/mona_putin_hybrid.jpg")
+
+#mona_putin()
+
+
+# PART 2.4
+
+#blend(apple, orange, mask, 90, 34)
+#save(blend(apple, orange, mask, 90, 34), "out/oraple.jpg")
+
 def sf_himilaya():
+    """ This takes a really long time with the high gaussian kernel size. """
     sf = skio.imread("img/sf.jpg", 0)
     himilaya = skio.imread("img/himilaya.jpg", 0)
     sf_mask = skio.imread("img/sf_mask.jpg", 0)
-    save(blend(himilaya, sf, sf_mask, 32, 6), "out/himilaya.jpg")
+    save(blend(himilaya, sf, sf_mask, 120, 53, name="sf"), "out/himilaya.jpg")
 
 #sf_himilaya()
+
+def sd_craterlake():
+    sd = skio.imread("img/sd_a.jpg", 0)
+    crater = skio.imread("img/sd_b.jpg", 0)
+    sd_mask = skio.imread("img/sd_mask.jpg", 0)
+    save(blend(crater, sd, sd_mask, 30, 12), "out/crater2.jpg")
+
+#sd_craterlake()
+
+def mona_putin_masked():
+    sd = skio.imread("img/mona_p.jpg", 0)
+    crater = skio.imread("img/mona_l.jpg", 0)
+    sd_mask = skio.imread("img/mona_mask.jpg", 0)
+    save(blend(crater, sd, sd_mask, 36, 24), "out/mona_putin.jpg")
+
+#mona_putin_masked()
