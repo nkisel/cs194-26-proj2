@@ -31,6 +31,7 @@ def show(img):
 def save(img, name):
     skio.imsave(name, img)
 
+# Part 1.1
 def convolve_x(img):
     """ Convolve IMG in the x direction """
     return sps.convolve2d(img, Dx)
@@ -85,6 +86,7 @@ def gaussian(alpha, sigma):
     g = cv2.getGaussianKernel(alpha, sigma)
     return np.outer(g, g.T)
 
+# PART 1.2
 def gaussian_of_image_then_convolution(img, threshold_x, threshold_y, alpha, sigma):
     """ Convolve the image with the Gaussian, then the D_x and D_y filters, binarizing the result. """
     g = gaussian(alpha, sigma)
@@ -117,7 +119,7 @@ def unsharp_mask(img, alpha = 12, sigma = 6):
     return np.clip(rgb2gray(img) - blur, 0, 1)
 
 def sharpen(img, alpha = 12, sigma = 3):
-    """ Add the unsharp masked version of an image back to its"""
+    """ Add the unsharp masked version of an image back to its original. """
     r = img[:,:,0]
     g = img[:,:,1]
     b = img[:,:,2]
@@ -136,6 +138,7 @@ def resharpen_blurred_image(img, alpha = 13, sigma = 5):
     g = img[:,:,1]
     b = img[:,:,2]
     
+    # Blur the image.
     blur_r = gaussian_convolution_params(r, alpha, sigma)
     blur_g = gaussian_convolution_params(g, alpha, sigma)
     blur_b = gaussian_convolution_params(b, alpha, sigma)
@@ -227,6 +230,10 @@ def blend(A, B, mask, size, sigma, name="oraple"):
 
     return LS
 
+# PART 1.1
+# Basic X & Y convolutions without any 
+#show(convolve_x(cameraman()))
+#show(convolve_y(cameraman()))
 
 # PART 1.2
 # The image's edges before & after taking the Gaussian.
@@ -292,6 +299,7 @@ def mona_putin():
 
 # PART 2.4
 
+# The size of the kernel here is enormous; try lowering it for demo purposes.
 #blend(apple, orange, mask, 90, 34)
 #save(blend(apple, orange, mask, 90, 34), "out/oraple.jpg")
 
